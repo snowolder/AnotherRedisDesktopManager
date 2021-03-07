@@ -40,6 +40,7 @@ const de = {
     collapse_all: 'Alle einklappen',
     expand_all: 'Alle ausklappen',
     json_format_failed: 'Json parsen fehlgeschlagen',
+    msgpack_format_failed: 'Msgpack parsen fehlgeschlagen',
     php_unserialize_format_failed: 'PHP Unserialisieren fehlgeschlagen',
     clean_up: 'Bereinigen',
     redis_console: 'Redis Konsole',
@@ -78,9 +79,11 @@ const de = {
     update_error: 'Aktualisierung fehlgeschlagen',
     update_downloading: 'Herunterladen ...',
     update_download_progress: 'Download Fortschritt',
-    update_downloaded: 'Update Download abgeschlossen, bitte starten Sie Ihre App neu',
-    mac_not_support_auto_update: 'Mac unterstützt keine automatische Aktualisierung, bitte manuell herunterladen und neu installieren,\
-    or ausführen "brew cask reinstall another-redis-desktop-manager"',
+    update_downloaded: 'Update Download abgeschlossen, bitte starten Sie Ihre App neu.\
+    [Tips]: Wenn Sie Windows verwenden, warten Sie nach dem Schließen der App darauf, dass das Desktopsymbol auf einen normalen Zustand (ca. 10 Sekunden) aktualisiert wird, und öffnen Sie es dann erneut',
+    mac_not_support_auto_update: 'Mac unterstützt keine automatische Aktualisierung, bitte manuell <a href="https://github.com/qishibo/AnotherRedisDesktopManager/releases">herunterladen</a> und neu installieren,\
+    or ausführen "brew reinstall --cask another-redis-desktop-manager"\
+    <br><br>🧡Wenn es für Sie nützlich ist, können Sie über den <a href="https://apps.apple.com/app/id1516451072">AppStore</a> sponsern, und der AppStore aktualisiert es automatisch für Sie.',
     font_family: 'Schrift-Familie',
     font_faq_title: 'Anweisungen zum Einstellen der Schriftart',
     font_faq: '1. Mehrere Schriftarten können eingestellt werden<br>\
@@ -100,6 +103,15 @@ const de = {
     page_zoom: 'Seite vergrößern',
     scan_disabled: 'Ausnahme bei der Ausführung von Scan-Befehlen (kann deaktiviert worden sein), Schlüsselliste kann nicht angezeigt werden',
     key_type_not_support: 'Die visuelle Anzeige wird für diesen Typ wird nicht unterstützt. Bitte benutzen Sie die Konsole.',
+    delete_folder: 'Ordner entfernen',
+    multiple_select: 'Mehrere Auswahl',
+    copy: 'Kopieren',
+    keys_to_be_deleted: 'Zu löschende Schlüssel',
+    delete_all: 'Alle löschen',
+    clear_cache: 'Cache leeren',
+    mark_color: 'Farbe markieren',
+    key_no_permission: 'Die Berechtigung zum Lesen von Dateien ist abgelaufen. Wählen Sie die Schlüsseldatei erneut manuell aus',
+    toggle_check_all: 'Alle auswählen | Alle abwählen',
   },
 };
 

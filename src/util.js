@@ -76,6 +76,13 @@ export default {
   base64Decode(str) {
     return (new Buffer(str, 'base64')).toString('utf8');
   },
+  humanFileSize(size = 0) {
+    if (!size) {
+      return 0;
+    }
+    var i = Math.floor(Math.log(size) / Math.log(1024));
+    return (size / Math.pow(1024, i)).toFixed(2) * 1 + ['B', 'kB', 'MB', 'GB', 'TB'][i];
+  },
   cloneObjWithBuff(object) {
     let clone = JSON.parse(JSON.stringify(object));
 
@@ -87,7 +94,7 @@ export default {
 
     return clone;
   },
-  keysToTree(keys, separator = ':') {
+  keysToTree(keys, separator = ':', openStatus = {}) {
     let tree = {};
     keys.forEach(key => {
       let currentNode = tree;
@@ -112,15 +119,20 @@ export default {
       });
     });
 
-    return this.formatTreeData(tree)
+    return this.formatTreeData(tree, '', openStatus, separator)
   },
-  formatTreeData(tree) {
+  formatTreeData(tree, previousKey = '', openStatus = {}, separator = ':') {
     return Object.keys(tree).map(key => {
       let node = { name: key};
 
       if (!tree[key].keyNode && Object.keys(tree[key]).length > 0) {
-        node.children = this.formatTreeData(tree[key]);
+        let tillNowKeyName = previousKey + key + separator;
+        node.open     = !!openStatus[tillNowKeyName];
+        node.children = this.formatTreeData(tree[key], tillNowKeyName, openStatus, separator);
+        // keep folder node in top of the tree(not include the outest list)
+        this.sortNodes(node.children);
         node.keyCount = node.children.reduce((a, b) => a + (b.keyCount || 0), 0);
+        node.fullName = tillNowKeyName;
       }
       else {
         node.keyCount = 1;
@@ -130,5 +142,15 @@ export default {
 
       return node;
     });
-  }
+  },
+  // nodes is reference
+  sortNodes(nodes) {
+    nodes.sort(function(a, b) {
+      if (a.children && b.children) {
+        return 0;
+      }
+
+      return a.children ? -1 : (b.children ? 1 : 0);
+    });
+  },
 };

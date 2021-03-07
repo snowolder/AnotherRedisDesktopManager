@@ -40,6 +40,7 @@ const pt = {
     collapse_all: 'Recolher todos',
     expand_all: 'Expandir todos',
     json_format_failed: 'Falha na análise do JSON',
+    msgpack_format_failed: 'Falha na análise do Msgpack',
     php_unserialize_format_failed: 'Falha na desserialização do PHP',
     clean_up: 'Limpar',
     redis_console: 'Console do Redis',
@@ -78,9 +79,11 @@ const pt = {
     update_error: 'Falha na atualização',
     update_downloading: 'Downloading...',
     update_download_progress: 'Download em progresso',
-    update_downloaded: 'Download de atualização concluído, reinicie seu aplicativo por favor',
-    mac_not_support_auto_update: 'Mac não suporta atualização automática, faça o download e reinstale manualmente, \
-    Ou execute "brew cask reinstall another-redis-desktop-manager"',
+    update_downloaded: 'Download de atualização concluído, reinicie seu aplicativo por favor.\
+    [Tips]: Se você estiver usando o Windows, depois de fechar o aplicativo, aguarde o ícone da área de trabalho para atualizar para um estado normal (cerca de 10 segundos), e então você pode reabri-lo',
+    mac_not_support_auto_update: 'Mac não suporta atualização automática, faça o <a href="https://github.com/qishibo/AnotherRedisDesktopManager/releases">download</a> e reinstale manualmente, \
+    Ou execute "brew reinstall --cask another-redis-desktop-manager"\
+    <br><br>🧡se for útil para você, você pode patrocinar através da <a href="https://apps.apple.com/app/id1516451072">AppStore</a>, e a AppStore irá atualizá-lo automaticamente para você.',
     font_family: 'Font Family',
     font_faq_title: 'Instruções de configuração de fonte',
     font_faq: '1. Múltiplas fontes podem ser definidas <br>\
@@ -100,6 +103,15 @@ const pt = {
     page_zoom: 'Zoom da página',
     scan_disabled: 'Exceção de execução do comando de scan (pode ter sido desativada), a lista de chaves não pode ser exibida',
     key_type_not_support: 'Visual display não é suportado para este tipo. Por favor, use console',
+    delete_folder: 'Apagar Pasta',
+    multiple_select: 'Múltiplos Seleccionar',
+    copy: 'Copiar',
+    keys_to_be_deleted: 'Chaves a serem apagadas',
+    delete_all: 'Apagar Tudo',
+    clear_cache: 'Limpar cache',
+    mark_color: 'Cor da marca',
+    key_no_permission: 'A permissão de leitura do arquivo expirou, selecione novamente o arquivo de chave manualmente',
+    toggle_check_all: 'Selecionar tudo | Desmarcar tudo',
   },
 };
 

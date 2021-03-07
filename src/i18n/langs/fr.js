@@ -40,6 +40,7 @@ const fr = {
     collapse_all: 'Tout fermer',
     expand_all: 'Tout étendre',
     json_format_failed: 'Échec de l\'analyse du JSON',
+    msgpack_format_failed: 'Échec de l\'analyse du Msgpack',
     php_unserialize_format_failed: 'Échec de la désérialisation PHP',
     clean_up: 'Nettoyer',
     redis_console: 'Console Redis',
@@ -78,9 +79,11 @@ const fr = {
     update_error: 'Mise à jour échouée',
     update_downloading: 'Téléchargement...',
     update_download_progress: 'Téléchargement en cours',
-    update_downloaded: 'Téléchargement de la mise à jour terminé, redémarrez l\'application s\'il vous plaît',
-    mac_not_support_auto_update: 'Les Mac ne supportent pas les mises à jour automatique, vous pouvez télécharger et réinstaller manuellement,\
-    ou lancer "brew cask reinstall another-redis-desktop-manager"',
+    update_downloaded: 'Téléchargement de la mise à jour terminé, redémarrez l\'application s\'il vous plaît.\
+    [Tips]: Si vous utilisez Windows, après avoir fermé l\'application, attendez que l\'icône du bureau soit actualisée à un état normal (environ 10 secondes), puis vous pouvez la rouvrir',
+    mac_not_support_auto_update: 'Les Mac ne supportent pas les mises à jour automatique, vous pouvez <a href="https://github.com/qishibo/AnotherRedisDesktopManager/releases">télécharger</a> et réinstaller manuellement,\
+    ou lancer "brew reinstall --cask another-redis-desktop-manager"\
+    <br><br>🧡si cela vous est utile, vous pouvez sponsoriser via l\'<a href="https://apps.apple.com/app/id1516451072">AppStore</a>, et l\'AppStore le mettra automatiquement à jour pour vous.',
     font_family: 'Famille de polices',
     font_faq_title: 'Instructions de configuration de polices',
     font_faq: '1. Plusieurs polices peuvent être paramétrées<br>\
@@ -100,6 +103,15 @@ const fr = {
     page_zoom: 'Agrandir la page',
     scan_disabled: 'Exception d\'exécution de la commande Scan (peut avoir été désactivée), la liste des clés ne peut pas être affichée',
     key_type_not_support: 'L\'affichage visuel n\'est pas pris en charge pour ce type. Veuillez utiliser la console',
+    delete_folder: 'Supprimer le dossier',
+    multiple_select: 'Sélection multiple',
+    copy: 'Copie',
+    keys_to_be_deleted: 'Clés à supprimer',
+    delete_all: 'Supprimer tout',
+    clear_cache: 'Vider le cache',
+    mark_color: 'Couleur de la marque',
+    key_no_permission: 'L\'autorisation de lecture de fichier a expiré, veuillez resélectionner le fichier de clé manuellement',
+    toggle_check_all: 'Tout sélectionner | Tout désélectionner',
   },
 };
 
