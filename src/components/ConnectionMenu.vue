@@ -47,6 +47,9 @@
         <el-dropdown-item @click.native='deleteConnection'>
           <span><i class='more-operate-ico el-icon-delete'></i>&nbsp;{{ $t('message.del_connection') }}</span>
         </el-dropdown-item>
+        <el-dropdown-item @click.native='memoryAnalisys'>
+          <span><i class='more-operate-ico fa fa-table'></i>&nbsp;{{ $t('message.memory_analysis') }}</span>
+        </el-dropdown-item>
         <el-dropdown-item @click.native='flushDB' divided>
           <span><i class='more-operate-ico fa fa-exclamation-triangle'></i>&nbsp;{{ $t('message.flushdb') }}</span>
         </el-dropdown-item>
@@ -94,7 +97,7 @@ export default {
         this.$t('message.close_to_edit_connection'),
         { type: 'warning' },
       ).then(() => {
-        this.$bus.$emit('closeConnection');
+        this.$bus.$emit('closeConnection', this.config.connectionName);
         this.$refs.editConnectionDialog.show();
       }).catch(() => {});
     },
@@ -103,7 +106,7 @@ export default {
         this.$t('message.close_to_connection'),
         { type: 'warning' },
       ).then(() => {
-        this.$bus.$emit('closeConnection');
+        this.$bus.$emit('closeConnection', this.config.connectionName);
       }).catch(() => {});
     },
     editConnectionFinished(newConfig) {
@@ -150,17 +153,23 @@ export default {
         this.$bus.$emit('openCli', this.client, this.config.connectionName);
       }
     },
+    memoryAnalisys() {
+      this.$bus.$emit('memoryAnalysis', this.client, this.config.connectionName);
+    },
     flushDB() {
       if (!this.client) {
         return;
       }
 
       const preDB = this.client.condition ? this.client.condition.select : 0;
+      const inputTxt = 'yes';
+      const placeholder = this.$t('message.flushdb_prompt', {txt: inputTxt});
 
-      this.$confirm(
-        this.$t('message.confirm_flush_db', {db: preDB}),
-        {type: 'warning'}
-      ).then(() => {
+      this.$prompt(this.$t('message.confirm_flush_db', {db: preDB}), {
+        inputValidator: value => {return (value == inputTxt) ? true : placeholder},
+        inputPlaceholder: placeholder,
+      })
+      .then(value => {
         this.client.flushdb().then((reply) => {
           if (reply == 'OK') {
             this.$message.success({
@@ -170,8 +179,9 @@ export default {
 
             this.refreshConnection();
           }
-        });
-      }).catch(() => {});
+        }).catch(e => {this.$message.error(e.message);});
+      })
+      .catch(e => {});
     },
     changeColor(color) {
       this.$emit('changeColor', color);

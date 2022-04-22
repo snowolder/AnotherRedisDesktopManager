@@ -9,8 +9,12 @@
             <el-option
               v-for="index in dbs"
               :key="index"
-              :label="'DB' + index"
+              :label="`DB${index}`"
               :value="index">
+              <span>
+                {{`DB${index}`}}
+                <span class="db-select-key-count" v-if="dbKeysCount[index]">[{{dbKeysCount[index]}}]</span>
+              </span>
             </el-option>
             <!-- <span slot="prefix" class="fa fa-sitemap" style="font-size: 80%"></span> -->
           </el-select>
@@ -66,7 +70,7 @@
     </el-form-item>
 
     <!-- new key dialog -->
-    <el-dialog :title="$t('message.add_new_key')" :visible.sync="newKeyDialog">
+    <el-dialog :title="$t('message.add_new_key')" :visible.sync="newKeyDialog" :close-on-click-modal='false'>
       <el-form label-position="top" size="mini">
         <el-form-item :label="$t('message.key_name')">
           <el-input v-model='newKeyName'></el-input>
@@ -108,13 +112,19 @@ export default {
       selectedNewKeyType: 'string',
       newKeyTypes: {
         String: 'string', Hash: 'hash', List: 'list', Set: 'set', Zset: 'zset',
+        Stream: 'stream', ReJSON: 'rejson',
       },
+      dbKeysCount: {},
     };
   },
-  props: ['client'],
+  props: ['client', 'config'],
   created() {
     this.$bus.$on('changeDb', (client, dbIndex) => {
-      if (client != this.client) {
+      if (!this.client || client.options.connectionName != this.client.options.connectionName) {
+        return;
+      }
+
+      if (this.client.condition.select == dbIndex) {
         return;
       }
 
@@ -125,35 +135,49 @@ export default {
     initShow() {
       this.initDatabaseSelect();
     },
+    setDb(db) {
+      this.selectedDbIndex = db;
+    },
     initDatabaseSelect() {
       this.client.config('get', 'databases').then((reply) => {
         this.dbs = [...Array(parseInt(reply[1])).keys()];
+        this.getDatabasesFromInfo();
       }).catch((e) => {
         // config command may be renamed
         this.dbs =  [...Array(16).keys()];
         // read dbs from info
-        this.getDatabasesFromInfo();
+        this.getDatabasesFromInfo(true);
       });
     },
-    getDatabasesFromInfo() {
+    getDatabasesFromInfo(guessMaxDb = false) {
       if (!this.client) {
         return;
       }
 
+      this.dbKeysCount = {};
       this.client.info().then((info) => {
-        try{
-          let lastDB = info.trim().split('\n').pop().match(/db(\d+)/)[1];
-          lastDB = parseInt(lastDB);
+        let keyspace = info.split('# Keyspace')[1].trim().split("\n");
+        let keyCount = [];
+        
+        for (const line of keyspace) {
+          keyCount = line.match(/db(\d+)\:keys=(\d+)/);
+          keyCount && this.$set(this.dbKeysCount, keyCount[1], keyCount[2]);
+        }
 
-          if (lastDB > 16) {
-            this.dbs = [...Array(lastDB + 1).keys()];
-          }
-        }catch (e) {};
+        if (!guessMaxDb || !keyCount || !keyCount[1]) {
+          return;
+        }
+        // max/last db which exists keys
+        const maxDb = parseInt(keyCount[1]);
+
+        if (maxDb > 16) {
+          this.dbs = [...Array(maxDb + 1).keys()];
+        }
       }).catch(() => {});
     },
     resetStatus() {
       this.dbs =[0];
-      this.selectedDbIndex = 0;
+      // this.selectedDbIndex = 0;
       this.searchMatch = '';
       this.searchExact = false;
     },
@@ -165,6 +189,11 @@ export default {
       this.client.select(this.selectedDbIndex)
       .then(() => {
         this.$parent.$parent.$parent.$refs.keyList.refreshKeyList();
+        // store the last selected db
+        localStorage.setItem('lastSelectedDb_' + this.config.connectionName, this.selectedDbIndex);
+        // tell cli to change db
+        this.client.options.db = this.selectedDbIndex;
+        this.$bus.$emit('changeDb', this.client, this.selectedDbIndex);
       })
       // select is not allowed in cluster mode
       .catch(e => {
@@ -190,6 +219,8 @@ export default {
       promise.then(() => {
         this.$bus.$emit('refreshKeyList', this.client, key, 'add');
         this.$bus.$emit('clickedKey', this.client, key, true);
+      }).catch(e => {
+        this.$message.error(e.message);
       });
 
       this.newKeyDialog = false;
@@ -210,6 +241,12 @@ export default {
         }
         case 'zset': {
           return this.client.zadd(key, 0, 'New member');
+        }
+        case 'stream': {
+          return this.client.xadd(key, '*', 'New key', 'New value');
+        }
+        case 'rejson': {
+          return this.client.call('JSON.SET', [key, '.', '{"New key":"New value"}']);
         }
       }
     },
@@ -249,10 +286,14 @@ export default {
   .connection-menu .db-select {
     width: 100%;
   }
+  .el-select-dropdown__item .db-select-key-count {
+    color: #a9a9ab;
+    font-size: 82%;
+  }
   /*fix el-select height different from el-input*/
-  .connection-menu .db-select .el-input__inner {
+  .connection-menu .db-select .el-input__inner, .connection-menu .new-key-btn {
     /*margin-top: 0.5px;*/
-    height: 30.5px;
+    height: 28px;
   }
   .connection-menu .new-key-btn {
     width: 100%;
@@ -260,6 +301,10 @@ export default {
   .connection-menu .search-item {
     margin-top: -10px;
     margin-bottom: 15px;
+  }
+  /*fix extract checkbox height*/
+  .connection-menu .search-item .el-input__suffix-inner {
+    display: inline-block;
   }
   .connection-menu .search-input {
     width: 100%;

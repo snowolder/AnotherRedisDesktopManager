@@ -14,24 +14,34 @@
       <el-button @click="confirmDelete" :disabled="loadingScan||loadingDelete" style="float: right;" type="danger">{{ $t('message.delete_all') }}</el-button>
     </div>
 
+    <!-- scan pattern -->
+    <el-tag v-if="rule.pattern && rule.pattern.length" style="margin-left: 10px;">
+      <i class="el-icon-search"></i> {{rule.pattern.join(' ')}}
+    </el-tag>
+
     <!-- key list -->
     <ol class="del-batch-key-list-ol">
       <li v-for="key, index in Object.keys(allKeys)" :key="index">{{ key }}</li>
     </ol>
   </el-card>
+  <ScrollToTop parentNum='1'></ScrollToTop>
 </div>
 </template>
 
 <script type="text/javascript">
+import ScrollToTop from '@/components/ScrollToTop';
+
 export default {
   data() {
     return {
       patternKeys: [],
       loadingScan: false,
       loadingDelete: false,
+      scanStreams: [],
     };
   },
-  props: ['client', 'rule'],
+  props: ['client', 'rule', 'hotKeyScope'],
+  components: { ScrollToTop },
   computed: {
     allKeys() {
       let dict = this.specifyKeys;
@@ -73,10 +83,11 @@ export default {
       nodes.map(node => {
         let scanOption = {
           match: pattern + '*',
-          count: 7000,
+          count: 50000,
         }
 
         let stream = node.scanBufferStream(scanOption);
+        this.scanStreams.push(stream);
 
         stream.on('data', keys => {
           this.patternKeys = this.patternKeys.concat(keys.sort());
@@ -108,6 +119,8 @@ export default {
       // one key per time instead of batch is for cluster...
       for (let i = 0; i < total; i++) {
         let promise = this.client.del(keys[i]);
+        promise.catch(e => {});
+
         // just wait the last one
         if (i === last) {
           promise.then((reply) => {
@@ -121,14 +134,35 @@ export default {
             else {
               this.$message.error(this.$t('message.delete_failed'));
             }
+          }).catch(e => {
+            this.loadingScan = false;
+            this.loadingDelete = false;
+            this.$message.error(e.message);
           });
         }
       }
     },
+    initShortcut() {
+      this.$shortcut.bind('ctrl+r, ⌘+r, f5', this.hotKeyScope, () => {
+        this.initKeys();
+        return false;
+      });
+    },
   },
   mounted() {
     this.initKeys();
-  }
+    this.initShortcut();
+  },
+  beforeDestroy() {
+    this.$shortcut.deleteScope(this.hotKeyScope);
+
+    // cancel scanning
+    if (this.scanStreams.length) {
+      for (let stream of this.scanStreams) {
+        stream.pause && stream.pause();
+      }
+    }
+  },
 };
 </script>
 
@@ -142,7 +176,7 @@ export default {
     margin-top: 10px;
   }
   .del-batch-key-list-ol {
-    min-height: calc(50vh);
+    min-height: calc(100vh - 272px);
     overflow: auto;
     padding-left: 10px;
     list-style-position: inside;

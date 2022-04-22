@@ -3,7 +3,7 @@
     <!-- multi operate -->
     <el-row class="batch-operate" :gutter="6">
       <el-col :span="2">
-        <el-checkbox @change='toggleCheckAll' class='select-cancel-all' :title='$t("message.toggle_check_all")'></el-checkbox>
+        <el-checkbox v-model='checkAllSelect' @change='toggleCheckAll' class='select-cancel-all' :title='$t("message.toggle_check_all")'></el-checkbox>
       </el-col>
       <el-col :span="11">
         <el-button @click='deleteBatch' type="danger" style="width: 100%" size="mini">{{ $t('el.upload.delete') }}</el-button>
@@ -38,7 +38,8 @@
 import $ from "jquery";
 if (!window.jQuery) window.jQuery = $;
 
-import ("@ztree/ztree_v3/js/jquery.ztree.all.min.js");
+// import ("@ztree/ztree_v3/js/jquery.ztree.all.js");
+import ("@qii404/ztree_v3/js/jquery.ztree.all.js");
 
 export default {
   data() {
@@ -47,13 +48,15 @@ export default {
       openStatus: {},
       rightClickNode: {},
       multiOperating: false,
+      checkAllSelect: false,
+      treeNodesOverflow: 20000,
       setting: {
         view: {
           showIcon: true,
           showLine: false,
           selectedMulti: false,
           dblClickExpand: false,
-          addDiyDom: this.addDiyDom,
+          // addDiyDom: this.addDiyDom,
           expandSpeed: 'fast',
         },
         check: {
@@ -61,25 +64,47 @@ export default {
             // chkboxType: { "Y": "s", "N": "s" }
         },
         callback: {
+          beforeCheck: (treeId, treeNode) => {
+            if (!window.event.shiftKey || !this.lastTid || this.lastTid === treeNode.tId) {
+              this.lastTid = treeNode.tId;
+              return true;
+            }
+            const curLi = document.getElementById(treeNode.tId);
+            const lastLi = document.getElementById(this.lastTid);
+
+            if (!curLi || !lastLi) {
+              return true;
+            }
+
+            const direction = (curLi.getBoundingClientRect().y - lastLi.getBoundingClientRect().y)
+                              <= 0 ? 'up' : 'down';
+            // check between bottom and top
+            this.multipleCheck(direction, treeNode.tId, this.lastTid);
+            this.lastTid = treeNode.tId;
+
+            return false;
+          },
           onClick: (event, treeId, treeNode) => {
             // multi operating, do not open key detail tab, just check node
             if (this.multiOperating) {
-              return this.ztreeObj.checkNode(treeNode, !treeNode.checked, true);
+              return this.ztreeObj.checkNode(treeNode, undefined, true, true);
             }
 
             // folder clicked
             if (treeNode.children) {
               // toggle tree view
-              this.ztreeObj && this.ztreeObj.expandNode(treeNode, undefined, false, false);
-
-              // store open status
-              return this.openStatus[treeNode.fullName] = treeNode.open;
+              return this.ztreeObj && this.ztreeObj.expandNode(treeNode, undefined, false, false, true);
             }
 
+            // key clicked
             this.clickKey(Buffer.from(treeNode.nameBuffer.data), event);
           },
-          onExpand: (event, treeId, treeNode) => {
-            return this.openStatus[treeNode.fullName] = treeNode.open;
+          beforeExpand: (treeId, treeNode) => {
+            // after folder expand, sorting keys
+            this.folderExpand(treeNode);
+            this.openStatus[treeNode.fullName] = !treeNode.open;
+
+            return true;
           },
           onCollapse: (event, treeId, treeNode) => {
             return this.openStatus[treeNode.fullName] = treeNode.open;
@@ -104,7 +129,7 @@ export default {
   props: ['client', 'config', 'keyList'],
   computed: {
     separator() {
-      return this.config.separator ? this.config.separator : ':';
+      return this.config.separator === undefined ? ':' : this.config.separator;
     }
   },
   methods: {
@@ -114,6 +139,7 @@ export default {
     },
     hideMultiSelect() {
       this.multiOperating = false;
+      this.checkAllSelect = false;
       this.ztreeObj.checkAllNodes(false);
       this.$refs.treeWrapper.classList.remove('show-checkbox');
     },
@@ -142,8 +168,13 @@ export default {
           clipboard.writeText(this.rightClickNode.name);
           break;
         }
-        // del single key
+        // del single key["delete" in the key right menu]
         case 'delete': {
+          // del batch instead of single when multi operating
+          if (this.multiOperating) {
+            return this.deleteBatch();
+          }
+
           let keyBuffer = Buffer.from(this.rightClickNode.nameBuffer.data);
 
           this.client.del(keyBuffer).then((reply) => {
@@ -158,7 +189,7 @@ export default {
             else {
               this.$message.error(this.$t('message.delete_failed'));
             }
-          });
+          }).catch(e => {this.$message.error(e.message);});
           break;
         }
         // select multiple
@@ -181,6 +212,25 @@ export default {
     },
     toggleCheckAll(checked) {
       this.ztreeObj.checkAllNodes(checked);
+    },
+    folderExpand(treeNode) {
+      if (!treeNode.asyncOperated) {
+        // force cut nodes
+        if (treeNode.children.length > this.treeNodesOverflow) {
+          treeNode.children.splice(this.treeNodesOverflow);
+          this.$nextTick(() => {
+            this.$message.warning({
+              message: this.$t('message.tree_node_overflow', {num: this.treeNodesOverflow}),
+              duration: 4000
+            });
+          });
+        }
+
+        // sort nodes async, only after opened
+        this.$util.sortKeysAndFolder(treeNode.children);
+
+        treeNode.asyncOperated = true;
+      }
     },
     deleteBatch() {
       let rule = {key: [], pattern: []};
@@ -224,31 +274,54 @@ export default {
       event && (event.ctrlKey || event.metaKey) && (newTab = true);
       this.$bus.$emit('clickedKey', this.client, key, newTab);
     },
+    // modify ztree struct
     addDiyDom(treeId, treeNode) {
       const spaceWidth = 5;
-      const switchObj = $("#" + treeNode.tId + "_switch");
-      const icoObj = $("#" + treeNode.tId + "_ico");
-      const checkObj = $("#" + treeNode.tId + "_check");
-      // checkObj.remove();
-      icoObj.before(checkObj);
-      // switchObj.remove();
-      icoObj.before(switchObj);
+      const tId = treeNode.tId;
 
-      // show key count
-      if (treeNode.children) {
-        icoObj.after(`<span class='key-list-count'>(${treeNode.keyCount}) </span>`)
+      const icoObj = document.getElementById(`${tId}_ico`);
+      const checkObj = document.getElementById(`${tId}_check`);
+      const switchObj = document.getElementById(`${tId}_switch`);
+
+      // folder node
+      if (treeNode.isParent) {
+        icoObj.before(checkObj);
+        icoObj.before(switchObj);
+
+        // key count
+        const countObj = document.createElement('span');
+        countObj.setAttribute('class', 'key-list-count');
+        countObj.innerHTML = `(${treeNode.keyCount})`
+        icoObj.after(countObj)
+
+        // folder indent
+        if (treeNode.level > 0) {
+          const spaceObj = document.createElement('span');
+          spaceObj.setAttribute('style', `display:inline-block;width:${spaceWidth * treeNode.level}px`);
+          switchObj.before(spaceObj);
+        }
       }
 
-      // folder indent
-      if (treeNode.level >= 1) {
-        const spaceStr = "<span style='display: inline-block;width:" + (spaceWidth * treeNode.level)+ "px'></span>";
-        switchObj.before(spaceStr);
+      // key node
+      else {
+        // text span
+        const spanObj = document.getElementById(`${tId}_span`);
+        spanObj.before(checkObj);
+
+        // key node remove icon and switch
+        icoObj.remove();
+        switchObj.remove();
+
+        // key in foleder, add indent
+        if (treeNode.level > 0) {
+          const spaceObj = document.createElement('span');
+          spaceObj.setAttribute('style', `display:inline-block;width:${spaceWidth * (treeNode.level + 2)}px`);
+          spanObj.before(spaceObj);
+        }
       }
     },
     treeRefresh(nodes) {
-      // this.ztreeObj && this.ztreeObj.destroy();
-      // folder keep in front
-      this.$util.sortNodes(nodes);
+      this.ztreeObj && this.ztreeObj.destroy();
 
       this.ztreeObj = $.fn.zTree.init(
         $(`#${this.treeId}`),
@@ -256,13 +329,119 @@ export default {
         nodes
       );
     },
+    reCheckNodes(nodes = []) {
+      if (!nodes || !nodes.length) {
+        return;
+      }
+
+      for (let node of nodes) {
+        // skip folder node
+        if (node.children) {
+          continue;
+        }
+
+        // node to be checked
+        // const checkedNode = this.ztreeObj.getNodeByTId(node.tId);
+        // if the tId changes, use this line to find previous checked node
+        const checkedNode = this.ztreeObj.getNodesByParam('name', node.name)[0];
+        checkedNode && this.ztreeObj.checkNode(checkedNode, true, true);
+      }
+    },
+    multipleCheck (direction, curTid, lastTid) {
+      const topId = direction == 'up' ? curTid : lastTid;
+      const bottomId = direction == 'up' ? lastTid : curTid;
+      // all nodes display
+      const liDoms = document.querySelectorAll(`#${this.treeId} li`);
+      // same as the last node check status
+      const checkTarget = this.ztreeObj.getNodeByTId(lastTid).checked;
+
+      let startCheck = false;
+      let selectedIds = new Set();
+      let bottomNodeParents = new Set();
+
+      // collect all nodes which need to be checked, from bottom to top
+      for (let index = liDoms.length - 1; index >= 0; index--) {
+        const domId = liDoms[index].id;
+        // find bottom node
+        if (!startCheck) {
+          (domId === bottomId) && (startCheck = true);
+          continue;
+        }
+
+        // find top node, means last node
+        if (domId === topId) {
+          direction === 'up' && selectedIds.add(domId);
+          break;
+        }
+
+        selectedIds.add(domId);
+      }
+
+      let topNode = this.ztreeObj.getNodeByTId(topId);
+      let bottomNode = this.ztreeObj.getNodeByTId(bottomId);
+
+      // check top or bottom node
+      this.ztreeObj.checkNode(direction === 'down' ? bottomNode : topNode, checkTarget, true);
+
+      // get nodeIds in tree of bottom root
+      while (bottomNode.parentTId) {
+        bottomNodeParents.add(bottomNode.parentTId);
+        bottomNode = bottomNode.getParentNode();
+      }
+
+      // check other nodes along the way, from bottom to top
+      for (let domId of selectedIds) {
+        // folders in bottom tree, checked by bottom node already
+        if (bottomNodeParents.has(domId)) {
+          continue;
+        }
+
+        let node = this.ztreeObj.getNodeByTId(domId);
+
+        // exclude bottom root tree nodes
+        // ignore this node because its parent node also in the check list
+        if (!bottomNodeParents.has(node.parentTId) && selectedIds.has(node.parentTId)) {
+          continue;
+        }
+
+        node.checked !== checkTarget && this.ztreeObj.checkNode(node, checkTarget, true);
+      }
+    },
   },
   watch: {
     keyList(newList) {
-      this.treeRefresh(
-        this.$util.keysToTree(newList, this.separator, this.openStatus)
-      );
+      // backup the previous checked nodes
+      let checkedNodes = [];
+      this.ztreeObj && (checkedNodes = this.ztreeObj.getCheckedNodes(true));
 
+      const keyNodes = this.separator ?
+        this.$util.keysToTree(newList, this.separator, this.openStatus, this.treeNodesOverflow) :
+        this.$util.keysToList(newList);
+
+      // nodes displayed in outermost layer
+      if (keyNodes.length > this.treeNodesOverflow) {
+        // force cut
+        keyNodes.splice(this.treeNodesOverflow);
+        // using nextTick to relieve msg missing caused by app stuck
+        this.$nextTick(() => {
+          this.$message.warning({
+            message: this.$t('message.tree_node_overflow', {num: this.treeNodesOverflow}),
+            duration: 6000,
+          });
+        });
+      }
+
+      // sort outermost layer nodes
+      this.$util.sortKeysAndFolder(keyNodes);
+      this.treeRefresh(keyNodes);
+
+      // remove animination when too many nodes
+      if (newList.length > 9000) {
+        this.ztreeObj && (this.ztreeObj.setting.view.expandSpeed = '');
+      }
+
+      // recheck checked nodes
+      this.reCheckNodes(checkedNodes);
       // only 1 key such as extract search, expand all
       if (newList.length <= 1) {
         this.ztreeObj && this.ztreeObj.expandAll(true);
@@ -273,7 +452,7 @@ export default {
 </script>
 
 <style>
-@import '@ztree/ztree_v3/css/zTreeStyle/zTreeStyle.css';
+@import '@qii404/ztree_v3/css/zTreeStyle/zTreeStyle.css';
 
 /*tree style*/
 .ztree {
@@ -291,9 +470,13 @@ export default {
   width: 100%;
   height: 22px;
   padding: 0;
-  line-height: normal;
+  line-height: 22px;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/*overwrite ztree span margin, default is 2px*/
+.ztree li span {
+  margin-right: 0;
 }
 .dark-mode .ztree li a {
   color: #f7f7f7;
@@ -314,8 +497,11 @@ export default {
   background: #50616b;
 }
 
-/*checkbox && folder icon*/
+/*checkbox icon*/
 .ztree li span.button {font-size: 115%; background-image: url("../assets/custom_tree.png"); vertical-align: middle;}
+/*fix checkbox missing*/
+.ztree li span.button.chk.checkbox_false_part {background-position: 0 0;}
+.ztree li span.button.chk.checkbox_false_part_focus {background-position: 0 -14px;}
 
 /*toggle switch*/
 .ztree li span.button.switch {height: 22px; width: 20px; background-image: url("../assets/key_tree_toggle.png");}
@@ -325,26 +511,22 @@ export default {
 /*.ztree li span.button.noline_open.level0 {background-position: 0 -18px;}
 .ztree li span.button.noline_close.level0 {background-position: -18px -18px;}*/
 
-/*folder icon*/
-.ztree li span.button.ico_close, .ztree li span.button.ico_open {
-  margin-right: 5px;
-  background-image: none;
-  /*background-position: 200px 0px;*/
-}
-/*key node remove icon*/
-.ztree li span.button.ico_docu {
-  display: none;
-}
-/*hide key node switch icon*/
-.ztree li span.button.noline_docu {
-  background-image: none;
-}
-/*keys in level0, switch icon*/
-.ztree li span.button.level0.noline_docu {
-  width: 10px;
+
+/*node text*/
+.ztree li span.node_name {
+  margin-left: 5px;
 }
 
-/*folder icon*/
+
+/*folder font icon*/
+.ztree li span.button.ico_open {
+  line-height: 4px;
+  background-image: none;
+}
+.ztree li span.button.ico_close {
+  line-height: 4px;
+  background-image: none;
+}
 .ztree li span.button.ico_open::before {
   content: "\f07c";
 }
@@ -365,6 +547,9 @@ export default {
 /*folder keys count*/
 .ztree .key-list-count {
   color: #848a90;
+  float: right;
+  line-height: 22px;
+  margin-right: 2px;
 }
 .dark-mode .ztree .key-list-count {
   color: #a3a6ad;

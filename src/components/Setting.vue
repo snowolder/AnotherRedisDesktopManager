@@ -27,6 +27,30 @@
         </el-input-number>
       </el-form-item>
 
+      <!-- keys per loading -->
+      <el-form-item>
+        <el-input-number
+          size="mini"
+          placeholder='500'
+          :min=10
+          :max=10000
+          :step=50
+          v-model='form.keysPageSize'>
+        </el-input-number>&nbsp;
+        <!-- load all switch -->
+        <el-switch v-model='form.showLoadAllKeys'></el-switch> {{ $t('message.show_load_all_keys') }}
+
+        <span slot="label">
+          {{ $t('message.keys_per_loading') }}
+          <el-popover
+            :content="$t('message.keys_per_loading_tip')"
+            placement="top-start"
+            trigger="hover">
+            <i slot="reference" class="el-icon-question"></i>
+          </el-popover>
+        </span>
+      </el-form-item>
+
       <!-- export connections -->
       <el-form-item :label="$t('message.config_connections')">
         <el-button icon="el-icon-upload2" @click="exportConnection">{{ $t('message.export') }}</el-button>
@@ -64,7 +88,8 @@
       <el-form-item :label="$t('message.pre_version')" class='current-version'>
         <el-tag type="info">{{ appVersion }}</el-tag>
 
-        <a href="###" @click.stop.prevent="clearCache" :title="$t('message.clear_cache_tip')">{{ $t('message.clear_cache') }}</a>
+        <a href="###" @click.stop.prevent="showHotkeys">{{ $t('message.hotkey') }}</a>
+        <a href="###" @click.stop.prevent="clearCache">{{ $t('message.clear_cache') }}</a>
         <a href="###" @click.stop.prevent="checkUpdate">{{ $t('message.check_update') }}</a>
         <a href="https://github.com/qishibo/AnotherRedisDesktopManager/releases">{{ $t('message.manual_update') }}</a>
         <a href="https://github.com/qishibo/AnotherRedisDesktopManager/">{{ $t('message.project_home') }}</a>
@@ -111,7 +136,7 @@ export default {
   data() {
     return {
       visible: false,
-      form: {fontFamily: '', zoomFactor: 1.0},
+      form: {fontFamily: '', zoomFactor: 1.0, keysPageSize: 500, showLoadAllKeys: false},
       importConnectionVisible: false,
       connectionFileContent: '',
       appVersion: (new URL(window.location.href)).searchParams.get('version'),
@@ -121,7 +146,7 @@ export default {
       darkMode: localStorage.theme == 'dark',
     };
   },
-  components: {LanguageSelector},
+  components: { LanguageSelector },
   methods: {
     show() {
       this.visible = true;
@@ -134,7 +159,7 @@ export default {
       storage.saveSettings(this.form);
 
       this.visible = false;
-      this.$bus.$emit('reloadSettings');
+      this.$bus.$emit('reloadSettings', Object.assign({}, this.form));
     },
     changeTheme() {
       const themeName = this.darkMode ? 'dark' : 'chalk';
@@ -222,9 +247,14 @@ export default {
       }
     },
     clearCache() {
-      localStorage.clear();
-      this.$message.success(this.$t('message.delete_success'));
-      window.location.reload();
+      this.$confirm(this.$t('message.clear_cache_tip')).then(() => {
+        localStorage.clear();
+        this.$message.success(this.$t('message.delete_success'));
+        window.location.reload();
+      }).catch(e => {});
+    },
+    showHotkeys() {
+      this.$parent.$refs.hotKeysDialog.show();
     },
   },
   mounted() {
